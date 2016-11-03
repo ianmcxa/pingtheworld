@@ -1,15 +1,38 @@
 let ping = require ("net-ping");
 let fs = require('fs');
+let Datastore = require('nedb');
+let cron = require('node-cron');
 
-let pingHost = function(server, session) {
-  session.pingHost (server, (error, target, sent, rcvd) => {
-    if (error)
-        console.log (target + ": " + error.toString ());
-    else
-        console.log (target + ": time (ms) " + (rcvd - sent));
+/**
+ * This function pings a server and saves the result to the database
+ */
+let pingHost = function(target, session, db) {
+  session.pingHost (target.ip, (error, ip, sent, rcvd) => {
+    if (error) {
+      db.insert({ targetName: target.name,
+                  targetIp: target.ip,
+                  time: new Date().toString(),
+                  duration: null,
+                  error: error.toString()
+      });
+
+      console.log (target.ip + ": " + error.toString ());
+    } else {
+      db.insert({ targetName: target.name,
+                  targetIp: target.ip,
+                  time: new Date().toString(),
+                  duration: rcvd - sent,
+                  error: null
+      });
+
+      console.log (target.ip + ": time (ms) " + (rcvd - sent));
+    }
   });
 }
 
+/**
+ * Here we create the session to ping from
+ */
 let createSession = function() {
   let options = {
     networkProtocol: ping.NetworkProtocol.IPv4,
@@ -20,5 +43,33 @@ let createSession = function() {
     ttl: 128
   };
 
-  return ping.createSession (options);
+  return ping.createSession(options);
 }
+
+/**
+ * We load the database in this function.
+ */
+let loadDB = function() {
+  let db = new Datastore('./data.db');
+  db.loadDatabase();
+  return db;
+}
+
+/**
+ * Main function, runs the program
+ */
+let main = function() {
+  let db = loadDB();
+  let session = createSession();
+
+  let serverString = fs.readFileSync('./servers.json');
+  let servers = JSON.parse(serverString);
+
+  cron.schedule('0 * * * *', () => {
+    servers.forEach((server) => {
+      pingHost(server, session, db);
+    });
+  });
+}
+
+main();

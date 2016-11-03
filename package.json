@@ -4,7 +4,9 @@
   "description": "A simple utility to ping servers around the world",
   "main": "ping.js",
   "dependencies": {
-    "net-ping": "^1.2.0"
+    "nedb": "^1.8.0",
+    "net-ping": "^1.2.0",
+    "node-cron": "^1.1.2"
   },
   "devDependencies": {},
   "scripts": {
